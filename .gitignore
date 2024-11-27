@@ -40,25 +40,6 @@ yarn-error.log*
 next-env.d.ts
 
 # Ignore markdown files
-notes.md 
-requirements.md
-checklist.md
 add_paths.py
 project-structure.md
-example-payload.json
 generate-project-structure.ts
-
-
-# Ignore the favicon folder and its subfolders and sub files
-favicon/
-/favicon
-
-# Ignore tests folder and its content
-/tests/*
-/tests
-tests/
-
-# ignore the public/images folder and its content
-/public/images/*
-/public/images
-public/images/
