@@ -6,6 +6,8 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { v4 as uuidv4 } from 'uuid';
 import LogsPanel from '@/components/LogsPanel';
 import ControlPanel from '@/components/ControlPanel';
+import { isValidPhoneNumber } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DashboardPage() {
   const supabase = createClientComponentClient();
@@ -17,11 +19,12 @@ export default function DashboardPage() {
   const [toNumber, setToNumber] = useState('');
   const [generatedUUID, setGeneratedUUID] = useState('');
   const [callStartTime, setCallStartTime] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleGenerateUUID = () => {
     const newUUID = uuidv4();
     setGeneratedUUID(newUUID);
-    setCallId(newUUID); // Automatically set the Call ID field
+    setCallId(newUUID);
   };
 
   const handleCopyUUID = async () => {
@@ -35,6 +38,13 @@ export default function DashboardPage() {
   };
 
   const handleApiRequest = async (type: 'call_started' | 'call_ended') => {
+    if (!isValidPhoneNumber(fromNumber) || !isValidPhoneNumber(toNumber)) {
+      setLogs((prev) => [
+        ...prev,
+        'Error: Invalid phone number format. Please check both numbers.',
+      ]);
+      return;
+    }
     try {
       let payload;
       const timestamp = new Date().toISOString();
@@ -76,14 +86,41 @@ export default function DashboardPage() {
       const result = await response.json();
 
       if (!response.ok) {
+        // Handling duplicate call ID
+        if (result.code === 'DUPLICATE_CALL_ID') {
+          setLogs((prev) => [
+            ...prev,
+            `Error: ${result.error}`,
+            `Hint: ${result.details}`,
+          ]);
+          // new UUID generated automatically
+          handleGenerateUUID();
+          return;
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: result.error || 'Failed to process request',
+        });
         throw new Error(result.error || 'Failed to process request');
       }
+
+      toast({
+        title: `Call ${type === 'call_started' ? 'started' : 'ended'} successfully`,
+        description: result.message,
+      });
 
       setLogs((prev) => [
         ...prev,
         `${type.toUpperCase()} Response: ${JSON.stringify(result, null, 2)}`,
       ]);
     } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      });
       setLogs((prev) => [
         ...prev,
         `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
@@ -97,11 +134,11 @@ export default function DashboardPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // Redirect to main page (login) if no session is found
+      // Redirect to main page with log in form if no session is found
       if (!session) {
         router.push('/');
       } else {
-        setIsLoading(false); // Allow access if logged in
+        setIsLoading(false);
       }
     };
 

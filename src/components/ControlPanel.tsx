@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ControlPanelProps } from '@/types/types';
+import { PhoneNumberInput } from '@/components/PhoneNumberInput';
+import { isValidPhoneNumber } from '@/lib/utils';
 
 export default function ControlPanel({
   callId,
@@ -18,6 +20,12 @@ export default function ControlPanel({
   onCallEnded,
   onLogout,
 }: ControlPanelProps) {
+  const isFormValid = () => {
+    return (
+      callId && isValidPhoneNumber(fromNumber) && isValidPhoneNumber(toNumber)
+    );
+  };
+
   return (
     <div className="w-2/3 p-6">
       <div className="mb-6 flex justify-end">
@@ -52,15 +60,15 @@ export default function ControlPanel({
             value={callId}
             onChange={(e) => onCallIdChange(e.target.value)}
           />
-          <Input
-            placeholder="From Number"
+          <PhoneNumberInput
             value={fromNumber}
-            onChange={(e) => onFromNumberChange(e.target.value)}
+            onChange={onFromNumberChange}
+            placeholder="From Number"
           />
-          <Input
-            placeholder="To Number"
+          <PhoneNumberInput
             value={toNumber}
-            onChange={(e) => onToNumberChange(e.target.value)}
+            onChange={onToNumberChange}
+            placeholder="To Number"
           />
 
           <div className="flex gap-4">
@@ -68,6 +76,7 @@ export default function ControlPanel({
               onClick={onCallStarted}
               className="flex-1"
               variant="default"
+              disabled={!isFormValid()}
             >
               Send &quot;Call Started&quot;
             </Button>
@@ -75,6 +84,7 @@ export default function ControlPanel({
               onClick={onCallEnded}
               className="flex-1"
               variant="secondary"
+              disabled={!isFormValid()}
             >
               Send &quot;Call Ended&quot;
             </Button>
