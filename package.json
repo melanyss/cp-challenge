@@ -9,6 +9,7 @@
     "dev": "concurrently \"next dev\" \"open-cli http://localhost:3000\"",
     "generate-structure": "node --loader ts-node/esm generate-project-structure.ts",
     "build": "set NEXT_TELEMETRY_DISABLED=1 && npm run format && npm run add-paths && npm run generate-structure && next build",
+    "build:prod": "set NEXT_TELEMETRY_DISABLED=1 && next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
