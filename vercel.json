@@ -1,11 +1,20 @@
 {
+  "buildCommand": "npm run build",
   "crons": [
     {
       "path": "/api/cron",
-      "schedule": "0 0 * * *",
-      "headers": {
-        "x-api-key": "@api_secret_key"
-      }
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "x-api-key",
+          "value": "@api_secret_key"
+        }
+      ]
     }
   ]
 }
