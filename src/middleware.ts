@@ -1,24 +1,24 @@
 // Path: src\middleware.ts
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const apiKey = request.headers.get('x-api-key');
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api');
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-  if (!isApiRoute) {
-    return NextResponse.next();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+    const redirectUrl = new URL('/', req.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  if (!apiKey || apiKey !== process.env.API_SECRET_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const response = NextResponse.next();
-  response.headers.set('X-RateLimit-Limit', '100');
-  return response;
+  return res;
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/dashboard/:path*'],
 };

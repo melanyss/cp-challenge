@@ -18,7 +18,6 @@ export default function ControlPanel({
   onCopyUUID,
   onCallStarted,
   onCallEnded,
-  onLogout,
 }: ControlPanelProps) {
   const isFormValid = () => {
     return (
@@ -27,19 +26,14 @@ export default function ControlPanel({
   };
 
   return (
-    <div className="w-2/3 p-6">
-      <div className="mb-6 flex justify-end">
-        <Button
-          onClick={onLogout}
-          variant="outline"
-          className="text-muted-foreground hover:text-destructive"
-        >
-          Sign Out
-        </Button>
-      </div>
+    <div className="h-full bg-card p-6 rounded-lg shadow-md">
       <Card>
-        <CardHeader>
-          <CardTitle>Mock API Tester</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle>
+            <h2 className="text-2xl font-bold mb-4 title-custom">
+              Mock API Tester
+            </h2>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

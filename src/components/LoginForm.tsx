@@ -22,17 +22,20 @@ export default function LoginForm() {
     setError(null);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
       if (signInError) {
         throw signInError;
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      if (data.session) {
+        await router.push('/dashboard');
+        router.refresh();
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'An error occurred during login'

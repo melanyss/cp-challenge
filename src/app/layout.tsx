@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -18,7 +19,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: {
     template: '%s | CP Challenge',
-    default: 'CP Challenge', // a default is required when creating a template
+    default: 'CP Challenge',
   },
   description: 'A simple app to track phone calls',
   metadataBase: new URL('https://demo.melanys.me'),
@@ -33,10 +34,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-custom`}
+        suppressHydrationWarning
       >
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
         {children}
         <Toaster />
       </body>

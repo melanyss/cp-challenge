@@ -62,5 +62,14 @@ export interface ControlPanelProps {
   onCopyUUID: () => void;
   onCallStarted: () => void;
   onCallEnded: () => void;
-  onLogout: () => void;
+}
+
+export interface Metrics {
+  totalCalls: number;
+  failedCalls: number;
+  pendingCalls: number;
+  averageDuration: number;
+  maxDuration: number;
+  minDuration: number;
+  errorRate: number;
 }

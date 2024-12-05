@@ -8,6 +8,10 @@ import LogsPanel from '@/components/LogsPanel';
 import ControlPanel from '@/components/ControlPanel';
 import { isValidPhoneNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import AnalyticsPanel from '@/components/AnalyticsPanel';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 export default function DashboardPage() {
   const supabase = createClientComponentClient();
@@ -20,20 +24,26 @@ export default function DashboardPage() {
   const [generatedUUID, setGeneratedUUID] = useState('');
   const [callStartTime, setCallStartTime] = useState<string | null>(null);
   const { toast } = useToast();
+  const { trackEvent } = useAnalytics();
 
   const handleGenerateUUID = () => {
     const newUUID = uuidv4();
     setGeneratedUUID(newUUID);
     setCallId(newUUID);
+    trackEvent('generate_uuid');
   };
 
   const handleCopyUUID = async () => {
     try {
       await navigator.clipboard.writeText(generatedUUID);
       setLogs((prev) => [...prev, 'UUID copied to clipboard']);
+      trackEvent('copy_uuid_success');
     } catch (err) {
       setLogs((prev) => [...prev, 'Failed to copy UUID']);
       console.error('Failed to copy UUID:', err);
+      trackEvent('copy_uuid_error', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
   };
 
@@ -43,6 +53,10 @@ export default function DashboardPage() {
         ...prev,
         'Error: Invalid phone number format. Please check both numbers.',
       ]);
+      trackEvent('invalid_phone_number', {
+        from: fromNumber,
+        to: toNumber,
+      });
       return;
     }
     try {
@@ -86,14 +100,15 @@ export default function DashboardPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        // Handling duplicate call ID
         if (result.code === 'DUPLICATE_CALL_ID') {
           setLogs((prev) => [
             ...prev,
             `Error: ${result.error}`,
             `Hint: ${result.details}`,
           ]);
-          // new UUID generated automatically
+          trackEvent('duplicate_call_id', {
+            call_id: callId,
+          });
           handleGenerateUUID();
           return;
         }
@@ -102,12 +117,24 @@ export default function DashboardPage() {
           title: 'Error',
           description: result.error || 'Failed to process request',
         });
+        trackEvent('api_error', {
+          type,
+          error: result.error,
+          code: result.code,
+        });
         throw new Error(result.error || 'Failed to process request');
       }
 
       toast({
         title: `Call ${type === 'call_started' ? 'started' : 'ended'} successfully`,
         description: result.message,
+      });
+      trackEvent('call_event_success', {
+        type,
+        duration:
+          type === 'call_ended' && callStartTime
+            ? new Date().getTime() - new Date(callStartTime).getTime()
+            : undefined,
       });
 
       setLogs((prev) => [
@@ -125,25 +152,73 @@ export default function DashboardPage() {
         ...prev,
         `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
       ]);
+      trackEvent('api_error', {
+        type,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  };
+
+  const handleClearLogs = () => {
+    setLogs([]);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      trackEvent('user_logout_success');
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      trackEvent('user_logout_error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      console.error('Error signing out:', error);
+      setLogs((prev) => [
+        ...prev,
+        `Error signing out: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ]);
     }
   };
 
   useEffect(() => {
     const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-      // Redirect to main page with log in form if no session is found
-      if (!session) {
-        router.push('/');
-      } else {
+        if (error) {
+          console.error('Session check error:', error);
+          router.replace('/');
+          return;
+        }
+
+        if (!session) {
+          router.replace('/');
+          return;
+        }
+
         setIsLoading(false);
+      } catch (error) {
+        console.error('Session check error:', error);
+        router.replace('/');
       }
     };
 
     checkSession();
-  }, [supabase, router]);
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        router.replace('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router, supabase.auth]);
 
   if (isLoading) {
     return (
@@ -153,41 +228,42 @@ export default function DashboardPage() {
     );
   }
 
-  const handleClearLogs = () => {
-    setLogs([]);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setLogs((prev) => [
-        ...prev,
-        `Error signing out: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      ]);
-    }
-  };
-
   return (
-    <div className="flex min-h-screen bg-background p-4 gap-4">
-      <LogsPanel logs={logs} onClearLogs={handleClearLogs} />
-      <ControlPanel
-        callId={callId}
-        fromNumber={fromNumber}
-        toNumber={toNumber}
-        generatedUUID={generatedUUID}
-        onCallIdChange={setCallId}
-        onFromNumberChange={setFromNumber}
-        onToNumberChange={setToNumber}
-        onGenerateUUID={handleGenerateUUID}
-        onCopyUUID={handleCopyUUID}
-        onCallStarted={() => handleApiRequest('call_started')}
-        onCallEnded={() => handleApiRequest('call_ended')}
-        onLogout={handleLogout}
-      />
+    <div className="container mx-auto px-6 space-y-6 h-screen pt-6">
+      <div className="flex flex-col items-center relative mb-6">
+        <h1 className="text-4xl font-bold title-custom">Dashboard</h1>
+        <Button
+          variant="ghost"
+          onClick={handleLogout}
+          className="absolute top-0 right-0 text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
+      </div>
+
+      <AnalyticsPanel />
+
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-4">
+          <LogsPanel logs={logs} onClearLogs={handleClearLogs} />
+        </div>
+        <div className="col-span-8">
+          <ControlPanel
+            callId={callId}
+            fromNumber={fromNumber}
+            toNumber={toNumber}
+            generatedUUID={generatedUUID}
+            onCallIdChange={setCallId}
+            onFromNumberChange={setFromNumber}
+            onToNumberChange={setToNumber}
+            onGenerateUUID={handleGenerateUUID}
+            onCopyUUID={handleCopyUUID}
+            onCallStarted={() => handleApiRequest('call_started')}
+            onCallEnded={() => handleApiRequest('call_ended')}
+          />
+        </div>
+      </div>
     </div>
   );
 }
